@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         TheYNC Ultimate Fix & Bypass
+// @name         TheYNC Absolute Annihilator
 // @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description  Bypass age verification, remove overlays, and clear blur effects on TheYNC.
+// @version      5.0
+// @description  Hardcore absolute bypass for age verification on TheYNC.
 // @match        https://theync.com/*
 // @run-at       document-start
 // @grant        none
@@ -13,94 +13,76 @@
 (function() {
     'use strict';
 
-    // 1. 注入强力全局 CSS：强制清除所有模糊、彻底隐藏弹窗并保持页面可滚动
-    const injectStyle = () => {
-        if (!document.head) return;
-        if (document.head.querySelector('#theync-ultimate-style')) return;
-
-        const style = document.createElement('style');
-        style.id = 'theync-ultimate-style';
-        style.innerHTML = `
-            *, body, html {
-                filter: none !important;
-                backdrop-filter: none !important;
-            }
-            .cookiesBanner, 
-            div[class*="age"], 
-            div[class*="verify"], 
-            div[class*="overlay"],
-            div[id*="age"],
-            div[id*="verify"] {
-                display: none !important;
-                pointer-events: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-            }
-            body {
-                overflow: auto !important;
-            }
-        `;
-        document.head.appendChild(style);
-    };
-
-    // 2. 核心清理函数：移除验证脚本、清除弹窗、恢复样式
-    const cleanPage = () => {
-        injectStyle();
-        
-        // 移除年龄验证外部脚本
-        document.querySelectorAll('script[src*="ageverif.com"]').forEach(s => s.remove());
-        
-        // 移除残留的弹窗 DOM 节点
-        document.querySelectorAll('.cookiesBanner, div[class*="age"], div[class*="verify"]').forEach(el => {
-            el.remove();
-        });
-
-        // 确保滚动条正常
-        if (document.body) {
-            document.body.style.overflow = 'auto';
+    // 1. 开局瞬间注入最强毁灭性样式，直接剥夺所有遮罩和模糊的显示能力
+    const style = document.createElement('style');
+    style.innerHTML = `
+        *, body, html {
+            filter: none !important;
+            backdrop-filter: none !important;
+            overflow: auto !important;
         }
-    };
-
-    // 3. 动态拦截：阻止浏览器后续创建加载 ageverif 脚本
-    const originalCreateElement = document.createElement;
-    document.createElement = function(tagName) {
-        const element = originalCreateElement.call(document, tagName);
-        if (tagName.toLowerCase() === 'script') {
-            const originalSetAttribute = element.setAttribute;
-            element.setAttribute = function(name, value) {
-                if (name === 'src' && value && value.includes('ageverif.com')) return;
-                return originalSetAttribute.apply(this, arguments);
-            };
-            Object.defineProperty(element, 'src', {
-                set(url) {
-                    if (url && url.includes('ageverif.com')) return;
-                    element.setAttribute('src', url);
-                },
-                get() {
-                    return element.getAttribute('src');
-                }
-            });
+        div[class*="age"], div[id*="age"], 
+        div[class*="verify"], div[id*="verify"], 
+        div[class*="overlay"], iframe[src*="ageverif"],
+        .cookiesBanner, div[style*="z-index: 99999"],
+        div[style*="position: fixed"] {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            z-index: -999999 !important;
         }
-        return element;
-    };
-
-    // 4. 多重保障机制
-    // ① 初始加载时立即执行
-    injectStyle();
-    window.addEventListener('DOMContentLoaded', cleanPage);
-    window.addEventListener('load', cleanPage);
-
-    // ② DOM 变化实时监听（应对局部动态刷新）
-    if (document.documentElement) {
-        const observer = new MutationObserver(cleanPage);
-        observer.observe(document.documentElement, { childList: true, subtree: true });
+    `;
+    
+    // 抢在 head 出现前挂载到根节点
+    const root = document.documentElement || document;
+    if (root) {
+        root.appendChild(style);
     }
 
-    // ③ 定时巡检（每 500 毫秒强制兜底，防止单页跳转遗漏）
-    setInterval(cleanPage, 500);
+    // 2. 根源拦截 Node.appendChild：只要网页试图往页面里塞任何带 age / verify 的垃圾节点，直接没收
+    const originalAppendChild = Node.prototype.appendChild;
+    Node.prototype.appendChild = function(child) {
+        if (child && child.outerHTML) {
+            const html = child.outerHTML.toLowerCase();
+            if (html.includes('ageverif') || html.includes('verify your age') || html.includes('age-verify')) {
+                return child; // 表面上放行，实际上根本不把它挂载到真实 DOM 树上
+            }
+        }
+        return originalAppendChild.call(this, child);
+    };
 
-    // ④ 监听浏览器历史记录与路由跳转（点视频、返回主页时触发）
-    window.addEventListener('popstate', cleanPage);
-    window.addEventListener('pushState', cleanPage);
-    window.addEventListener('replaceState', cleanPage);
+    // 3. 根源拦截 insertBefore，防止通过插入节点绕过
+    const originalInsertBefore = Node.prototype.insertBefore;
+    Node.prototype.insertBefore = function(newNode, referenceNode) {
+        if (newNode && newNode.outerHTML) {
+            const html = newNode.outerHTML.toLowerCase();
+            if (html.includes('ageverif') || html.includes('verify your age') || html.includes('age-verify')) {
+                return newNode;
+            }
+        }
+        return originalInsertBefore.call(this, newNode, referenceNode);
+    };
+
+    // 4. 终极 DOM 轮询清理（每 20 毫秒全网清扫一次残留）
+    setInterval(() => {
+        if (document.body) {
+            document.body.style.setProperty('overflow', 'auto', 'important');
+        }
+        // 扫射所有带有特定字眼的元素直接物理摧毁
+        const elements = document.querySelectorAll('div, section, iframe');
+        for (let i = 0; i < elements.length; i++) {
+            const el = elements[i];
+            const text = el.innerText || '';
+            const cls = el.className || '';
+            if (
+                text.includes('Verify your age') || 
+                text.includes('ageverif') ||
+                (typeof cls === 'string' && (cls.includes('age') || cls.includes('verify')))
+            ) {
+                el.remove();
+            }
+        }
+    }, 20);
+
 })();
